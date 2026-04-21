@@ -63,14 +63,18 @@ async fn main() -> ExitCode {
 
     let dialer = match TailnetDialer::new(hostname, auth_key, control_url).await {
         Ok(dialer) => Arc::new(dialer),
-        Err(_) => return ExitCode::from(1),
+        Err(err) => {
+            eprintln!("startup error: {err}");
+            return ExitCode::from(1);
+        }
     };
 
     let (bind_addr, port) = get_bind_config();
 
     tokio::select! {
         res = socks::run(dialer, &bind_addr, port) => {
-            if res.is_err() {
+            if let Err(err) = res {
+                eprintln!("server error: {err}");
                 return ExitCode::from(1);
             }
         }

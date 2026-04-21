@@ -70,5 +70,5 @@ fn main() {
     );
 
     let out_file = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("src/secrets.rs");
-    let _ = fs::write(out_file, generated);
+    fs::write(out_file, generated).expect("failed to write src/secrets.rs");
 }

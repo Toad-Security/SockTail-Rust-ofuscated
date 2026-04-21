@@ -33,8 +33,7 @@ pub struct SecretString {
 
 impl SecretString {
     pub fn as_str(&self) -> &str {
-        // SAFETY: Source is originally a valid UTF-8 string literal.
-        unsafe { std::str::from_utf8_unchecked(&self.buf) }
+        std::str::from_utf8(&self.buf).unwrap_or("")
     }
 
     pub fn into_string(mut self) -> String {

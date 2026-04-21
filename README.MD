@@ -15,6 +15,11 @@ Binario autocontenido para administración autorizada sobre Tailnet: se une a Ta
 
 - Rust estable
 
+
+## Nota sobre tailscale-rs
+
+La implementación usa `tailscale = 0.2` (preview) y establece internamente `TS_RS_EXPERIMENT=this_is_unstable_software`, requerido actualmente por esta librería.
+
 ## Build
 
 ```bash
