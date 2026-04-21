@@ -4,7 +4,6 @@ mod socks;
 mod tailscale;
 
 use std::env;
-use std::net::ToSocketAddrs;
 use std::process::ExitCode;
 use std::sync::Arc;
 
@@ -37,11 +36,7 @@ fn default_hostname() -> String {
 
 fn get_bind_config() -> (String, u16) {
     let addr = obfstr!("0.0.0.0").into_string();
-    let port = obfstr!("1080")
-        .as_str()
-        .parse::<u16>()
-        .ok()
-        .unwrap_or(1080);
+    let port = obfstr!("1080").as_str().parse::<u16>().ok().unwrap_or(1080);
     (addr, port)
 }
 
@@ -59,20 +54,19 @@ async fn main() -> ExitCode {
         return ExitCode::from(1);
     }
 
-    let hostname = args.get(1).and_then(|s| sanitize_hostname(s)).unwrap_or_else(default_hostname);
+    let hostname = args
+        .get(1)
+        .and_then(|s| sanitize_hostname(s))
+        .unwrap_or_else(default_hostname);
     let auth_key = args.get(2).cloned().or_else(secrets::build_auth_key);
     let control_url = args.get(3).cloned().or_else(secrets::build_control_url);
 
-    let dialer = match TailnetDialer::new(hostname, auth_key, control_url) {
+    let dialer = match TailnetDialer::new(hostname, auth_key, control_url).await {
         Ok(dialer) => Arc::new(dialer),
         Err(_) => return ExitCode::from(1),
     };
 
     let (bind_addr, port) = get_bind_config();
-
-    if (bind_addr.as_str(), port).to_socket_addrs().is_err() {
-        return ExitCode::from(1);
-    }
 
     tokio::select! {
         res = socks::run(dialer, &bind_addr, port) => {

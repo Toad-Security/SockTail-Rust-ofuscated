@@ -3,7 +3,7 @@ pub struct Obf<const N: usize> {
     key: u8,
 }
 
-pub const fn obfuscate_literal<const N: usize>(input: &[u8; N], key: u8) -> Obf<N> {
+pub const fn obfuscate_literal<const N: usize>(input: &[u8], key: u8) -> Obf<N> {
     let mut out = [0u8; N];
     let mut i = 0;
     while i < N {
@@ -37,8 +37,9 @@ impl SecretString {
         unsafe { std::str::from_utf8_unchecked(&self.buf) }
     }
 
-    pub fn into_string(self) -> String {
-        String::from_utf8(self.buf).unwrap_or_default()
+    pub fn into_string(mut self) -> String {
+        let buf = std::mem::take(&mut self.buf);
+        String::from_utf8(buf).unwrap_or_default()
     }
 }
 

@@ -1,9 +1,9 @@
 use std::io;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{lookup_host, TcpListener, TcpStream};
 
 use crate::tailscale::TailnetDialer;
 
@@ -36,15 +36,23 @@ async fn handle_connection(mut client: TcpStream, dialer: Arc<TailnetDialer>) ->
         return Ok(());
     }
 
-    let target = match parse_connect_request(&mut client).await {
-        Ok(target) => target,
+    let request = match parse_connect_request(&mut client).await {
+        Ok(request) => request,
         Err(status) => {
             let _ = send_connect_response(&mut client, status).await;
             return Ok(());
         }
     };
 
-    let mut remote = match dialer.dial_tcp(target).await {
+    let remote = match resolve_target(&request.host, request.port).await {
+        Ok(remote) => remote,
+        Err(_) => {
+            let _ = send_connect_response(&mut client, REP_GENERAL_FAILURE).await;
+            return Ok(());
+        }
+    };
+
+    let mut upstream = match dialer.dial_tcp(remote).await {
         Ok(stream) => stream,
         Err(_) => {
             let _ = send_connect_response(&mut client, REP_GENERAL_FAILURE).await;
@@ -53,8 +61,24 @@ async fn handle_connection(mut client: TcpStream, dialer: Arc<TailnetDialer>) ->
     };
 
     send_connect_response(&mut client, REP_SUCCEEDED).await?;
-    let _ = copy_bidirectional(&mut client, &mut remote).await;
+    let _ = copy_bidirectional(&mut client, &mut upstream).await;
     Ok(())
+}
+
+async fn resolve_target(host: &str, port: u16) -> io::Result<SocketAddr> {
+    if let Ok(addr) = format!("{host}:{port}").parse::<SocketAddr>() {
+        return Ok(addr);
+    }
+
+    let mut resolved = lookup_host((host, port)).await?;
+    resolved
+        .next()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "target not resolved"))
+}
+
+struct ConnectRequest {
+    host: String,
+    port: u16,
 }
 
 async fn handle_auth(stream: &mut TcpStream) -> io::Result<bool> {
@@ -80,7 +104,7 @@ async fn handle_auth(stream: &mut TcpStream) -> io::Result<bool> {
     Ok(false)
 }
 
-async fn parse_connect_request(stream: &mut TcpStream) -> Result<String, u8> {
+async fn parse_connect_request(stream: &mut TcpStream) -> Result<ConnectRequest, u8> {
     let mut req = [0u8; 4];
     stream
         .read_exact(&mut req)
@@ -135,7 +159,7 @@ async fn parse_connect_request(stream: &mut TcpStream) -> Result<String, u8> {
         .map_err(|_| REP_GENERAL_FAILURE)?;
     let port = u16::from_be_bytes(port_buf);
 
-    Ok(format!("{host}:{port}"))
+    Ok(ConnectRequest { host, port })
 }
 
 async fn send_connect_response(stream: &mut TcpStream, status: u8) -> io::Result<()> {

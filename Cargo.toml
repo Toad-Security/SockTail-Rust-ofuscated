@@ -5,8 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "signal"] }
-tsnet = "0.1.0"
-tempfile = "3"
+tailscale = "0.2"
 
 [profile.release]
 opt-level = "z"

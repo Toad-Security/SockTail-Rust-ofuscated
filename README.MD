@@ -8,13 +8,12 @@ Binario autocontenido para administración autorizada sobre Tailnet: se une a Ta
 - Los 3 argumentos son opcionales.
 - Puerto SOCKS5 fijo: `1080`.
 - SOCKS5 implementado manualmente (NO_AUTH + CONNECT para IPv4/IPv6/Dominio).
-- Sin configuración en disco persistente: el estado se crea en `tmpdir` y se limpia al salir.
+- Sin configuración persistente en disco.
 - Salida silenciosa por defecto (sin logs verbosos).
 
 ## Dependencias de toolchain
 
 - Rust estable
-- Go `>= 1.20` (requerido por `tsnet`/`libtailscale` durante compilación)
 
 ## Build
 
